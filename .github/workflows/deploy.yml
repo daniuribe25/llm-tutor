@@ -1,0 +1,117 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT_ID: llm-tutor-493322
+  REGION: southamerica-east1
+  REGISTRY: southamerica-east1-docker.pkg.dev/llm-tutor-493322/llm-tutor-app
+  API_SERVICE: llm-tutor-api
+  WEB_SERVICE: llm-tutor-web
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which parts of the repo changed
+  # ---------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - 'Dockerfile.backend'
+            web:
+              - 'web/**'
+
+  # ---------------------------------------------------------------------------
+  # Build and deploy API (only when api/ or Dockerfile.backend changed)
+  # ---------------------------------------------------------------------------
+  deploy-api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push API image
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          IMAGE="${{ env.REGISTRY }}/api:${SHA}"
+          LATEST="${{ env.REGISTRY }}/api:latest"
+          docker build -f Dockerfile.backend -t "$IMAGE" -t "$LATEST" .
+          docker push "$IMAGE"
+          docker push "$LATEST"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy API to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.API_SERVICE }} \
+            --image "$IMAGE" \
+            --region ${{ env.REGION }} \
+            --port 8080 \
+            --allow-unauthenticated \
+            --set-secrets "OLLAMA_API_KEY=ollama-api-key:latest" \
+            --memory 512Mi \
+            --quiet
+
+  # ---------------------------------------------------------------------------
+  # Build and deploy Web (only when web/ changed)
+  # ---------------------------------------------------------------------------
+  deploy-web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push Web image
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          IMAGE="${{ env.REGISTRY }}/web:${SHA}"
+          LATEST="${{ env.REGISTRY }}/web:latest"
+          docker build -f web/Dockerfile -t "$IMAGE" -t "$LATEST" ./web
+          docker push "$IMAGE"
+          docker push "$LATEST"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy Web to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.WEB_SERVICE }} \
+            --image "$IMAGE" \
+            --region ${{ env.REGION }} \
+            --port 8080 \
+            --allow-unauthenticated \
+            --set-env-vars "BACKEND_URL=${{ secrets.BACKEND_URL }}" \
+            --memory 512Mi \
+            --quiet
