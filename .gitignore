@@ -1,0 +1,5 @@
+# Default SQLite conversation DB (override with CONVERSATION_DB)
+/data/
+
+# Local-only deployment notes (project-specific)
+README.deployment.md

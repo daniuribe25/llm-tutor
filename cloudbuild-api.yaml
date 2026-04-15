@@ -1,0 +1,19 @@
+# Build API image with Dockerfile.backend (gcloud --tag only picks "Dockerfile").
+# Example:
+#   gcloud builds submit . --config=cloudbuild-api.yaml --region=southamerica-east1
+substitutions:
+  _REGION: southamerica-east1
+  _REPO: llm-tutor-app
+  _IMAGE_NAME: api
+  _TAG: latest
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.backend
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE_NAME}:${_TAG}
+      - .
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE_NAME}:${_TAG}
