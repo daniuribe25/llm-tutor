@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Bot, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MarkdownRenderer } from "./markdown-renderer";
+import { SourceCitations } from "./source-citations";
 import type { ChatMessage } from "@/lib/types";
 
 interface MessageBubbleProps {
@@ -67,6 +68,9 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
               ) : isStreaming ? (
                 <StreamingDots />
               ) : null}
+              {message.sources && message.sources.length > 0 && (
+                <SourceCitations sources={message.sources} />
+              )}
             </div>
           )}
         </div>

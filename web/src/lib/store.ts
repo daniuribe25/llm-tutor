@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ChatMessage, ConversationSummary, StreamStatus } from "./types";
+import type { ChatMessage, ConversationSummary, Source, StreamStatus } from "./types";
 
 interface ChatState {
   conversationId: string | null;
@@ -14,6 +14,7 @@ interface ChatState {
   setMessages: (msgs: ChatMessage[]) => void;
   addMessage: (msg: ChatMessage) => void;
   updateLastAssistantContent: (content: string) => void;
+  appendSourcesToLastAssistant: (sources: Source[]) => void;
   setStatus: (status: StreamStatus) => void;
   setSearchQuery: (query: string | null) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -40,6 +41,18 @@ export const useChatStore = create<ChatState>((set) => ({
       const last = msgs[msgs.length - 1];
       if (last?.role === "assistant") {
         msgs[msgs.length - 1] = { ...last, content };
+      }
+      return { messages: msgs };
+    }),
+  appendSourcesToLastAssistant: (sources) =>
+    set((s) => {
+      const msgs = [...s.messages];
+      const last = msgs[msgs.length - 1];
+      if (last?.role === "assistant") {
+        msgs[msgs.length - 1] = {
+          ...last,
+          sources: [...(last.sources ?? []), ...sources],
+        };
       }
       return { messages: msgs };
     }),

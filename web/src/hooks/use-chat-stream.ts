@@ -18,6 +18,7 @@ export function useChatStream() {
     setConversations,
     addMessage,
     updateLastAssistantContent,
+    appendSourcesToLastAssistant,
     setStatus,
     setSearchQuery,
   } = useChatStore();
@@ -102,6 +103,9 @@ export function useChatStream() {
                     setSearchQuery(data.query);
                     break;
                   case "search_results":
+                    if (data.results?.length) {
+                      appendSourcesToLastAssistant(data.results);
+                    }
                     setStatus("streaming");
                     setSearchQuery(null);
                     break;
@@ -145,6 +149,7 @@ export function useChatStream() {
       status,
       addMessage,
       updateLastAssistantContent,
+      appendSourcesToLastAssistant,
       setStatus,
       setSearchQuery,
       setConversationId,

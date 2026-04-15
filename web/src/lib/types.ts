@@ -1,8 +1,15 @@
+export interface Source {
+  title: string;
+  url: string;
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   images?: string[];
+  sources?: Source[];
   timestamp: string;
 }
 
