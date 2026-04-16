@@ -1,109 +1,13 @@
 from __future__ import annotations
 
-import json
-import os
 from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
-from ollama import AsyncClient, Message as OllamaMessage, Tool
-
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-
-MODEL = os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud")
-
-SYSTEM_PROMPT = """\
-You are an expert tutor who helps users learn any topic they ask about.
-
-Key behaviors:
-- When a topic requires up-to-date or factual information, you MUST call the search_web tool to find the latest data before answering. This applies regardless of whether you are in thinking mode or not.
-- Always prefer using search_web over relying on your training data for factual claims, current events, technical documentation, or anything that could be outdated.
-- Explain concepts clearly, adapting to the user's level.
-- Use examples, analogies, and step-by-step breakdowns.
-- When the user sends images, analyze them and incorporate them into your teaching.
-- Format responses with markdown: headings, bullet points, code blocks, bold/italic.
-- If unsure, say so and suggest what to search for next.
-- Be encouraging and patient.
-"""
-
-SEARCH_TOOL = Tool(
-    type="function",
-    function=Tool.Function(
-        name="search_web",
-        description="Search the web for current, accurate information on a topic. Use this when the user asks about facts, current events, technical details, or anything that benefits from up-to-date sources.",
-        parameters=Tool.Function.Parameters(
-            type="object",
-            required=["query"],
-            properties={
-                "query": Tool.Function.Parameters.Property(
-                    type="string",
-                    description="The search query to look up on the web.",
-                ),
-            },
-        ),
-    ),
-)
-
-
-def _build_client() -> AsyncClient:
-    model = MODEL
-    if model.endswith("-cloud"):
-        host = "https://ollama.com"
-        if not os.environ.get("OLLAMA_API_KEY"):
-            raise RuntimeError("OLLAMA_API_KEY is required for cloud models")
-    else:
-        host = os.environ.get("OLLAMA_HOST")
-    return AsyncClient(host=host) if host else AsyncClient()
-
-
-_client: AsyncClient | None = None
-
-
-def _get_client() -> AsyncClient:
-    """Lazy client so the API process can start (e.g. /health) before OLLAMA_API_KEY is validated."""
-    global _client
-    if _client is None:
-        _client = _build_client()
-    return _client
-
-
-def _format_search_results(results: list[dict[str, Any]]) -> str:
-    parts: list[str] = []
-    for i, r in enumerate(results, 1):
-        title = r.get("title", "")
-        url = r.get("url", "")
-        content = r.get("content", "")
-        parts.append(f"[{i}] {title}\n    URL: {url}\n    {content}")
-    return "\n\n".join(parts)
-
-
-async def _execute_web_search(query: str) -> tuple[list[dict], str]:
-    """Run a web search and return (raw_results, formatted_text)."""
-    try:
-        response = await _get_client().web_search(query=query, max_results=5)
-        raw = [
-            {
-                "title": r.title or "",
-                "url": r.url or "",
-                "content": (r.content or "")[:500],
-            }
-            for r in response.results
-        ]
-        return raw, _format_search_results(raw)
-    except Exception as exc:
-        error_result = [{"title": "Search error", "url": "", "content": str(exc)}]
-        return error_result, f"Web search failed: {exc}"
-
-
-class SSEEvent:
-    """Lightweight container for a typed SSE event to yield from the generator."""
-
-    __slots__ = ("event", "data")
-
-    def __init__(self, event: str, data: dict[str, Any]) -> None:
-        self.event = event
-        self.data = data
+from api.config import MODEL
+from api.services.ollama_client import get_client
+from api.services.prompts import SYSTEM_PROMPT
+from api.services.sse import SSEEvent
+from api.services.tools import SEARCH_TOOL, execute_web_search
 
 
 async def stream_chat(
@@ -137,7 +41,7 @@ async def stream_chat(
             if think_param is not None:
                 chat_kwargs["think"] = think_param
 
-            stream = await _get_client().chat(**chat_kwargs)
+            stream = await get_client().chat(**chat_kwargs)
 
             async for chunk in stream:
                 msg = chunk.message
@@ -174,7 +78,7 @@ async def stream_chat(
                 query = tc["arguments"].get("query", "")
                 yield SSEEvent("tool_call", {"name": tc["name"], "query": query})
 
-                raw_results, formatted = await _execute_web_search(query)
+                raw_results, formatted = await execute_web_search(query)
                 yield SSEEvent("search_results", {"results": raw_results})
 
                 ollama_messages.append({
