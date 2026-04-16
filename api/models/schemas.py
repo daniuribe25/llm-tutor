@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
     message: str
     images: list[str] | None = None
     think: str | None = None
+    research_mode: str | None = None  # None = auto-route; "deep" = force RESEARCH_DEEP
 
 
 class MessageImage(BaseModel):

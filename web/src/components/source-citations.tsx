@@ -66,9 +66,13 @@ export function SourceCitations({ sources }: SourceCitationsProps) {
                     )}
                     <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
                       <ExternalLink className="h-2.5 w-2.5" />
-                      {src.url
-                        ? new URL(src.url).hostname.replace(/^www\./, "")
-                        : ""}
+                      {(() => {
+                        try {
+                          return new URL(src.url).hostname.replace(/^www\./, "");
+                        } catch {
+                          return src.url || "";
+                        }
+                      })()}
                     </span>
                   </div>
                 </a>

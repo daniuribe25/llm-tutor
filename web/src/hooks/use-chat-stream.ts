@@ -3,9 +3,9 @@
 import { useCallback, useRef } from "react";
 import { useChatStore } from "@/lib/store";
 import { fetchConversations } from "@/lib/api";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, PipelineStatus } from "@/lib/types";
 
-/** Same-origin Next proxy → server uses BACKEND_URL at runtime (Cloud Run). */
+/** Same-origin Next proxy -> server uses BACKEND_URL at runtime (Cloud Run). */
 const CHAT_URL = "/api/chat";
 
 export function useChatStream() {
@@ -22,7 +22,9 @@ export function useChatStream() {
     addToolCallToLastAssistant,
     resolveLastToolCall,
     updateLastAssistantThinking,
+    updateLastAssistantPipelineStatus,
     thinkingMode,
+    researchMode,
     setStatus,
     setSearchQuery,
   } = useChatStore();
@@ -31,7 +33,7 @@ export function useChatStream() {
 
   const sendMessage = useCallback(
     async (text: string, images?: string[]) => {
-      if (status === "streaming") return;
+      if (status === "streaming" || status === "searching") return;
 
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -57,6 +59,7 @@ export function useChatStream() {
       abortRef.current = controller;
       let accumulated = "";
       let accumulatedThinking = "";
+      let lastStep = "synthesizing";
 
       try {
         const res = await fetch(CHAT_URL, {
@@ -67,6 +70,7 @@ export function useChatStream() {
             message: text,
             images: images ?? null,
             think: thinkingMode === "off" ? null : thinkingMode,
+            research_mode: researchMode === "auto" ? null : researchMode,
           }),
           signal: controller.signal,
         });
@@ -80,6 +84,7 @@ export function useChatStream() {
 
         const decoder = new TextDecoder();
         let buffer = "";
+        let currentEvent = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -89,7 +94,6 @@ export function useChatStream() {
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
-          let currentEvent = "";
           for (const line of lines) {
             if (line.startsWith("event:")) {
               currentEvent = line.slice(6).trim();
@@ -100,12 +104,22 @@ export function useChatStream() {
               try {
                 const data = JSON.parse(raw);
                 switch (currentEvent) {
+                  case "pipeline_status": {
+                    const ps: PipelineStatus = {
+                      step: data.step,
+                      detail: data.detail ?? "",
+                      progress: typeof data.progress === "number" ? data.progress : 0,
+                    };
+                    lastStep = data.step;
+                    updateLastAssistantPipelineStatus(ps);
+                    break;
+                  }
                   case "thinking":
-                    accumulatedThinking += data.content;
+                    accumulatedThinking += data.content ?? "";
                     updateLastAssistantThinking(accumulatedThinking);
                     break;
                   case "text":
-                    accumulated += data.content;
+                    accumulated += data.content ?? "";
                     updateLastAssistantContent(accumulated);
                     break;
                   case "tool_call":
@@ -126,7 +140,7 @@ export function useChatStream() {
                     setSearchQuery(null);
                     break;
                   case "error":
-                    accumulated += `\n\n*Error: ${data.error}*`;
+                    accumulated += `\n\n*Error: ${data.error ?? "Unknown error"}*`;
                     updateLastAssistantContent(accumulated);
                     break;
                   case "done":
@@ -136,6 +150,12 @@ export function useChatStream() {
                         .then(setConversations)
                         .catch(() => {});
                     }
+                    updateLastAssistantPipelineStatus({
+                      step: lastStep as PipelineStatus["step"],
+                      detail: "Done",
+                      progress: 1,
+                      completed: true,
+                    });
                     break;
                 }
               } catch {
@@ -169,7 +189,9 @@ export function useChatStream() {
       addToolCallToLastAssistant,
       resolveLastToolCall,
       updateLastAssistantThinking,
+      updateLastAssistantPipelineStatus,
       thinkingMode,
+      researchMode,
       setStatus,
       setSearchQuery,
       setConversationId,

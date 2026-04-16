@@ -18,6 +18,7 @@ export interface ChatMessage {
   sources?: Source[];
   toolCalls?: ToolCall[];
   thinking?: string;
+  pipelineStatus?: PipelineStatus;
   timestamp: string;
 }
 
@@ -57,3 +58,20 @@ export interface SSEDoneEvent {
 export type StreamStatus = "idle" | "streaming" | "searching" | "error";
 
 export type ThinkingMode = "off" | "low" | "medium" | "high";
+
+export type ResearchMode = "auto" | "deep";
+
+export type PipelineStep =
+  | "routing"
+  | "planning"
+  | "researching"
+  | "synthesizing"
+  | "critiquing"
+  | "refining";
+
+export interface PipelineStatus {
+  step: PipelineStep;
+  detail: string;
+  progress: number; // 0.0 – 1.0
+  completed?: boolean;
+}

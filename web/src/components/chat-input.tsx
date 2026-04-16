@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImagePlus, Send, Square, X, Zap, Brain } from "lucide-react";
+import { FlaskConical, ImagePlus, Send, Square, X, Zap, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -23,7 +23,8 @@ const THINKING_OPTIONS: { value: ThinkingMode; label: string; color: string }[] 
 
 export function ChatInput() {
   const { status, sendMessage, stopStreaming } = useChatStream();
-  const { thinkingMode, setThinkingMode } = useChatStore();
+  const { thinkingMode, setThinkingMode, researchMode, setResearchMode } = useChatStore();
+  const isDeepResearch = researchMode === "deep";
   const [input, setInput] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
@@ -131,6 +132,7 @@ export function ChatInput() {
                   />
                   <button
                     onClick={() => removeImage(i)}
+                    aria-label={`Remove image ${i + 1}`}
                     className="absolute -right-1.5 -top-1.5 rounded-full bg-foreground p-0.5 text-background opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     <X className="h-3 w-3" />
@@ -181,6 +183,8 @@ export function ChatInput() {
                     type="button"
                     onClick={() => setModeMenuOpen((v) => !v)}
                     disabled={isStreaming}
+                    aria-expanded={modeMenuOpen}
+                    aria-haspopup="menu"
                     className={`inline-flex items-center justify-center size-9 shrink-0 rounded-lg transition-colors hover:bg-muted disabled:opacity-50 ${currentOption.color}`}
                   >
                     {thinkingMode === "off" ? (
@@ -229,6 +233,29 @@ export function ChatInput() {
               )}
             </AnimatePresence>
           </div>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => setResearchMode(isDeepResearch ? "auto" : "deep")}
+                  disabled={isStreaming}
+                  className={`inline-flex items-center justify-center size-9 shrink-0 rounded-lg transition-colors disabled:opacity-50 ${
+                    isDeepResearch
+                      ? "bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                  aria-label={isDeepResearch ? "Deep Research (on)" : "Deep Research (off)"}
+                >
+                  <FlaskConical className="h-4 w-4" />
+                </button>
+              }
+            />
+            <TooltipContent>
+              {isDeepResearch ? "Deep Research: ON — click to disable" : "Deep Research: OFF — click to enable full pipeline"}
+            </TooltipContent>
+          </Tooltip>
 
           <Textarea
             ref={textareaRef}

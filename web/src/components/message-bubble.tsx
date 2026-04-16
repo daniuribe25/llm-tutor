@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Bot, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MarkdownRenderer } from "./markdown-renderer";
+import { ResearchProgress } from "./research-progress";
 import { ThinkingBlock } from "./thinking-block";
 import { ReasoningSteps } from "./reasoning-steps";
 import { SourceCitations } from "./source-citations";
@@ -65,6 +66,12 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <div className="prose-sm max-w-none">
+              {message.pipelineStatus && (
+                <ResearchProgress
+                  pipelineStatus={message.pipelineStatus}
+                  isStreaming={isStreaming}
+                />
+              )}
               {message.thinking && (
                 <ThinkingBlock
                   thinking={message.thinking}

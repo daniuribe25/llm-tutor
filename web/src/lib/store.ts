@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ChatMessage, ConversationSummary, Source, StreamStatus, ThinkingMode, ToolCall } from "./types";
+import type { ChatMessage, ConversationSummary, PipelineStatus, ResearchMode, Source, StreamStatus, ThinkingMode, ToolCall } from "./types";
 
 interface ChatState {
   conversationId: string | null;
@@ -8,6 +8,7 @@ interface ChatState {
   status: StreamStatus;
   searchQuery: string | null;
   thinkingMode: ThinkingMode;
+  researchMode: ResearchMode;
   sidebarOpen: boolean;
 
   setConversationId: (id: string | null) => void;
@@ -19,8 +20,10 @@ interface ChatState {
   addToolCallToLastAssistant: (tc: ToolCall) => void;
   resolveLastToolCall: () => void;
   updateLastAssistantThinking: (thinking: string) => void;
+  updateLastAssistantPipelineStatus: (status: PipelineStatus) => void;
   setStatus: (status: StreamStatus) => void;
   setThinkingMode: (mode: ThinkingMode) => void;
+  setResearchMode: (mode: ResearchMode) => void;
   setSearchQuery: (query: string | null) => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
@@ -34,6 +37,7 @@ export const useChatStore = create<ChatState>((set) => ({
   status: "idle",
   searchQuery: null,
   thinkingMode: "off",
+  researchMode: "auto",
   sidebarOpen: true,
 
   setConversationId: (id) => set({ conversationId: id }),
@@ -99,8 +103,18 @@ export const useChatStore = create<ChatState>((set) => ({
       }
       return { messages: msgs };
     }),
+  updateLastAssistantPipelineStatus: (pipelineStatus) =>
+    set((s) => {
+      const msgs = [...s.messages];
+      const last = msgs[msgs.length - 1];
+      if (last?.role === "assistant") {
+        msgs[msgs.length - 1] = { ...last, pipelineStatus };
+      }
+      return { messages: msgs };
+    }),
   setStatus: (status) => set({ status }),
   setThinkingMode: (mode) => set({ thinkingMode: mode }),
+  setResearchMode: (mode) => set({ researchMode: mode }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
@@ -110,5 +124,7 @@ export const useChatStore = create<ChatState>((set) => ({
       messages: [],
       status: "idle",
       searchQuery: null,
+      thinkingMode: "off",
+      researchMode: "auto",
     }),
 }));

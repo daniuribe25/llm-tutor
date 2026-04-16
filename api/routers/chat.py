@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from api.models.schemas import ChatRequest, Message, Source, ToolCallRecord
+from api.services.agents.orchestrator import orchestrate
 from api.services.conversation_store import store
-from api.services.ollama_service import stream_chat
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -31,7 +31,9 @@ async def chat(body: ChatRequest, request: Request) -> AsyncIterator[ServerSentE
     tool_calls_collected: list[ToolCallRecord] = []
     sources_collected: list[Source] = []
 
-    async for sse_event in stream_chat(history, think=body.think):
+    async for sse_event in orchestrate(
+        history, think=body.think, research_mode=body.research_mode
+    ):
         if await request.is_disconnected():
             break
 

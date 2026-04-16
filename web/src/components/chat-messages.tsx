@@ -86,7 +86,7 @@ export function ChatMessages() {
               key={msg.id}
               message={msg}
               isStreaming={
-                status === "streaming" &&
+                (status === "streaming" || status === "searching") &&
                 msg.role === "assistant" &&
                 i === messages.length - 1
               }
