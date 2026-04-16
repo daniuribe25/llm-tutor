@@ -4,6 +4,7 @@ import { HighlightJsTheme } from "@/components/highlight-js-theme";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const geist = Geist({

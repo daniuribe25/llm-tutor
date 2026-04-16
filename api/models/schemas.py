@@ -10,6 +10,7 @@ class ChatRequest(BaseModel):
     conversation_id: str | None = None
     message: str
     images: list[str] | None = None
+    think: str | None = None
 
 
 class MessageImage(BaseModel):
@@ -17,12 +18,28 @@ class MessageImage(BaseModel):
     media_type: str = "image/png"
 
 
+class Source(BaseModel):
+    title: str = ""
+    url: str = ""
+    content: str = ""
+
+
+class ToolCallRecord(BaseModel):
+    name: str
+    query: str
+
+
 class Message(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     role: str
     content: str
     images: list[str] | None = None
+    thinking: str | None = None
+    tool_calls: list[ToolCallRecord] | None = Field(default=None, alias="toolCalls")
+    sources: list[Source] | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True, "serialize_by_alias": True}
 
 
 class Conversation(BaseModel):

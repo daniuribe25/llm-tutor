@@ -17,7 +17,8 @@ SYSTEM_PROMPT = """\
 You are an expert tutor who helps users learn any topic they ask about.
 
 Key behaviors:
-- When a topic requires up-to-date or factual information, use the search_web tool to find the latest data before answering.
+- When a topic requires up-to-date or factual information, you MUST call the search_web tool to find the latest data before answering. This applies regardless of whether you are in thinking mode or not.
+- Always prefer using search_web over relying on your training data for factual claims, current events, technical documentation, or anything that could be outdated.
 - Explain concepts clearly, adapting to the user's level.
 - Use examples, analogies, and step-by-step breakdowns.
 - When the user sends images, analyze them and incorporate them into your teaching.
@@ -107,6 +108,7 @@ class SSEEvent:
 
 async def stream_chat(
     messages: list[dict[str, Any]],
+    think: str | None = None,
 ) -> AsyncIterator[SSEEvent]:
     """
     Stream a chat turn. Handles the tool-calling loop internally:
@@ -118,23 +120,32 @@ async def stream_chat(
         *messages,
     ]
 
+    think_param: str | None = think if think in ("low", "medium", "high") else None
+
     max_tool_rounds = 3
     try:
         for _ in range(max_tool_rounds):
             collected_content: list[str] = []
             tool_calls_detected: list[dict] = []
 
-            stream = await _get_client().chat(
+            chat_kwargs: dict[str, Any] = dict(
                 model=MODEL,
                 messages=ollama_messages,
                 tools=[SEARCH_TOOL],
                 stream=True,
             )
+            if think_param is not None:
+                chat_kwargs["think"] = think_param
+
+            stream = await _get_client().chat(**chat_kwargs)
 
             async for chunk in stream:
                 msg = chunk.message
                 if not msg:
                     continue
+
+                if msg.thinking:
+                    yield SSEEvent("thinking", {"content": msg.thinking})
 
                 if msg.tool_calls:
                     for tc in msg.tool_calls:

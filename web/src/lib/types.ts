@@ -4,12 +4,20 @@ export interface Source {
   content: string;
 }
 
+export interface ToolCall {
+  name: string;
+  query: string;
+  status: "pending" | "done";
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   images?: string[];
   sources?: Source[];
+  toolCalls?: ToolCall[];
+  thinking?: string;
   timestamp: string;
 }
 
@@ -47,3 +55,5 @@ export interface SSEDoneEvent {
 }
 
 export type StreamStatus = "idle" | "streaming" | "searching" | "error";
+
+export type ThinkingMode = "off" | "low" | "medium" | "high";

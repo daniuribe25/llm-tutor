@@ -3,3 +3,4 @@ uvicorn[standard]
 ollama
 python-dotenv
 pydantic>=2.0
+psycopg2-binary>=2.9

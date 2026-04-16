@@ -10,6 +10,7 @@ env:
   REGISTRY: southamerica-east1-docker.pkg.dev/llm-tutor-493322/llm-tutor-app
   API_SERVICE: llm-tutor-api
   WEB_SERVICE: llm-tutor-web
+  CLOUD_SQL_CONNECTION: llm-tutor-493322:southamerica-east1:llm-tutor-db
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -70,7 +71,8 @@ jobs:
             --region ${{ env.REGION }} \
             --port 8080 \
             --allow-unauthenticated \
-            --set-secrets "OLLAMA_API_KEY=ollama-api-key:latest" \
+            --set-secrets "OLLAMA_API_KEY=ollama-api-key:latest,DATABASE_URL=database-url:latest" \
+            --add-cloudsql-instances ${{ env.CLOUD_SQL_CONNECTION }} \
             --memory 512Mi \
             --quiet
 

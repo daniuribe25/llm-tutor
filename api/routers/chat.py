@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
-from api.models.schemas import ChatRequest, Message
+from api.models.schemas import ChatRequest, Message, Source, ToolCallRecord
 from api.services.conversation_store import store
 from api.services.ollama_service import stream_chat
 
@@ -27,13 +27,31 @@ async def chat(body: ChatRequest, request: Request) -> AsyncIterator[ServerSentE
     history = [_msg_to_ollama(m) for m in store.get_messages(conv.id)]
 
     full_response: list[str] = []
+    thinking_parts: list[str] = []
+    tool_calls_collected: list[ToolCallRecord] = []
+    sources_collected: list[Source] = []
 
-    async for sse_event in stream_chat(history):
+    async for sse_event in stream_chat(history, think=body.think):
         if await request.is_disconnected():
             break
 
         if sse_event.event == "text":
             full_response.append(sse_event.data["content"])
+        elif sse_event.event == "thinking":
+            thinking_parts.append(sse_event.data["content"])
+        elif sse_event.event == "tool_call":
+            tool_calls_collected.append(
+                ToolCallRecord(name=sse_event.data["name"], query=sse_event.data["query"])
+            )
+        elif sse_event.event == "search_results":
+            for r in sse_event.data.get("results", []):
+                sources_collected.append(
+                    Source(
+                        title=r.get("title", ""),
+                        url=r.get("url", ""),
+                        content=r.get("content", ""),
+                    )
+                )
 
         yield ServerSentEvent(
             data=sse_event.data,
@@ -41,10 +59,16 @@ async def chat(body: ChatRequest, request: Request) -> AsyncIterator[ServerSentE
         )
 
     assistant_text = "".join(full_response)
-    if assistant_text:
+    if assistant_text or thinking_parts:
         store.add_message(
             conv.id,
-            Message(role="assistant", content=assistant_text),
+            Message(
+                role="assistant",
+                content=assistant_text,
+                thinking="".join(thinking_parts) or None,
+                tool_calls=tool_calls_collected or None,
+                sources=sources_collected or None,
+            ),
         )
 
     updated_conv = store.get(conv.id)

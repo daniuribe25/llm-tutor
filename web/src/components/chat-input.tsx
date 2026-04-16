@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImagePlus, Send, Square, X } from "lucide-react";
+import { ImagePlus, Send, Square, X, Zap, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,15 +11,40 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useChatStream } from "@/hooks/use-chat-stream";
+import { useChatStore } from "@/lib/store";
+import type { ThinkingMode } from "@/lib/types";
+
+const THINKING_OPTIONS: { value: ThinkingMode; label: string; color: string }[] = [
+  { value: "off", label: "Fast", color: "text-red-500" },
+  { value: "low", label: "Think: Low", color: "text-amber-500" },
+  { value: "medium", label: "Think: Medium", color: "text-blue-500" },
+  { value: "high", label: "Think: High", color: "text-violet-500" },
+];
 
 export function ChatInput() {
   const { status, sendMessage, stopStreaming } = useChatStream();
+  const { thinkingMode, setThinkingMode } = useChatStore();
   const [input, setInput] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
 
   const isStreaming = status === "streaming" || status === "searching";
+  const currentOption = THINKING_OPTIONS.find((o) => o.value === thinkingMode) ?? THINKING_OPTIONS[0];
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
+        setModeMenuOpen(false);
+      }
+    }
+    if (modeMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [modeMenuOpen]);
 
   const handleSubmit = useCallback(() => {
     const text = input.trim();
@@ -147,6 +172,63 @@ export function ChatInput() {
             />
             <TooltipContent>Upload images</TooltipContent>
           </Tooltip>
+
+          <div className="relative" ref={modeMenuRef}>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    onClick={() => setModeMenuOpen((v) => !v)}
+                    disabled={isStreaming}
+                    className={`inline-flex items-center justify-center size-9 shrink-0 rounded-lg transition-colors hover:bg-muted disabled:opacity-50 ${currentOption.color}`}
+                  >
+                    {thinkingMode === "off" ? (
+                      <Zap className="h-4 w-4" />
+                    ) : (
+                      <Brain className="h-4 w-4" />
+                    )}
+                  </button>
+                }
+              />
+              <TooltipContent>{currentOption.label}</TooltipContent>
+            </Tooltip>
+
+            <AnimatePresence>
+              {modeMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-0 mb-1 z-50 min-w-[140px] rounded-lg border border-border bg-background p-1 shadow-lg"
+                >
+                  {THINKING_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setThinkingMode(opt.value);
+                        setModeMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                        thinkingMode === opt.value
+                          ? "bg-primary/10 font-medium"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {opt.value === "off" ? (
+                        <Zap className={`h-3 w-3 ${opt.color}`} />
+                      ) : (
+                        <Brain className={`h-3 w-3 ${opt.color}`} />
+                      )}
+                      {opt.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <Textarea
             ref={textareaRef}

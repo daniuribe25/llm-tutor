@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import { MessageBubble } from "./message-bubble";
 import { SearchIndicator } from "./search-indicator";
@@ -9,10 +9,31 @@ import { GraduationCap } from "lucide-react";
 
 export function ChatMessages() {
   const { messages, status, searchQuery } = useChatStore();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
 
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledUp.current = distanceFromBottom > 30;
+  }, []);
+
+  const prevMsgCount = useRef(0);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const newUserMsg =
+      messages.length > prevMsgCount.current &&
+      messages.length >= 2 &&
+      messages[messages.length - 2]?.role === "user";
+    if (newUserMsg) {
+      userScrolledUp.current = false;
+    }
+    prevMsgCount.current = messages.length;
+
+    if (!userScrolledUp.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, searchQuery]);
 
   if (messages.length === 0) {
@@ -57,7 +78,7 @@ export function ChatMessages() {
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-4 p-4 pb-8">
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => (

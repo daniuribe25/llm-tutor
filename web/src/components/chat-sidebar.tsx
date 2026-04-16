@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Trash2, PanelLeftClose } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Pencil, PanelLeftClose, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +11,7 @@ import {
   fetchConversations,
   fetchConversation,
   deleteConversation,
+  renameConversation,
 } from "@/lib/api";
 
 export function ChatSidebar() {
@@ -55,6 +56,38 @@ export function ChatSidebar() {
     },
     [setConversationId, setMessages]
   );
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStartRename = useCallback(
+    (id: string, currentTitle: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEditingId(id);
+      setEditTitle(currentTitle);
+      setTimeout(() => editInputRef.current?.select(), 0);
+    },
+    []
+  );
+
+  const handleConfirmRename = useCallback(async () => {
+    if (!editingId) return;
+    const trimmed = editTitle.trim();
+    if (trimmed) {
+      try {
+        await renameConversation(editingId, trimmed);
+        loadConversations();
+      } catch {
+        // ignore
+      }
+    }
+    setEditingId(null);
+  }, [editingId, editTitle, loadConversations]);
+
+  const handleCancelRename = useCallback(() => {
+    setEditingId(null);
+  }, []);
 
   const handleDelete = useCallback(
     async (id: string, e: React.MouseEvent) => {
@@ -114,8 +147,9 @@ export function ChatSidebar() {
                   key={conv.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => handleSelectConversation(conv.id)}
+                  onClick={() => editingId !== conv.id && handleSelectConversation(conv.id)}
                   onKeyDown={(e) => {
+                    if (editingId === conv.id) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       handleSelectConversation(conv.id);
@@ -128,13 +162,53 @@ export function ChatSidebar() {
                   }`}
                 >
                   <MessageSquare className="h-4 w-4 shrink-0" />
-                  <span className="flex-1 truncate">{conv.title}</span>
-                  <button
-                    onClick={(e) => handleDelete(conv.id, e)}
-                    className="shrink-0 rounded p-1 opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </button>
+
+                  {editingId === conv.id ? (
+                    <form
+                      className="flex flex-1 items-center gap-1"
+                      onSubmit={(e) => { e.preventDefault(); handleConfirmRename(); }}
+                    >
+                      <input
+                        ref={editInputRef}
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Escape") handleCancelRename(); }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring"
+                        autoFocus
+                      />
+                      <button
+                        type="submit"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 rounded p-0.5 hover:bg-sidebar-accent"
+                      >
+                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleCancelRename(); }}
+                        className="shrink-0 rounded p-0.5 hover:bg-sidebar-accent"
+                      >
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <span className="flex-1 truncate">{conv.title}</span>
+                      <button
+                        onClick={(e) => handleStartRename(conv.id, conv.title, e)}
+                        className="shrink-0 rounded p-1 opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100"
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(conv.id, e)}
+                        className="shrink-0 rounded p-1 opacity-0 transition-opacity hover:bg-sidebar-accent group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </>
+                  )}
                 </div>
               ))}
 

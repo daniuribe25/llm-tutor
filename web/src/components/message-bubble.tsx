@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { Bot, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MarkdownRenderer } from "./markdown-renderer";
+import { ThinkingBlock } from "./thinking-block";
+import { ReasoningSteps } from "./reasoning-steps";
 import { SourceCitations } from "./source-citations";
 import type { ChatMessage } from "@/lib/types";
 
@@ -63,6 +65,18 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <div className="prose-sm max-w-none">
+              {message.thinking && (
+                <ThinkingBlock
+                  thinking={message.thinking}
+                  isStreaming={isStreaming}
+                />
+              )}
+              {message.toolCalls && message.toolCalls.length > 0 && (
+                <ReasoningSteps
+                  toolCalls={message.toolCalls}
+                  isStreaming={isStreaming}
+                />
+              )}
               {message.content ? (
                 <MarkdownRenderer content={message.content} />
               ) : isStreaming ? (

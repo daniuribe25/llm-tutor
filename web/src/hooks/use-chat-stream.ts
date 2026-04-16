@@ -19,6 +19,10 @@ export function useChatStream() {
     addMessage,
     updateLastAssistantContent,
     appendSourcesToLastAssistant,
+    addToolCallToLastAssistant,
+    resolveLastToolCall,
+    updateLastAssistantThinking,
+    thinkingMode,
     setStatus,
     setSearchQuery,
   } = useChatStore();
@@ -52,6 +56,7 @@ export function useChatStream() {
       const controller = new AbortController();
       abortRef.current = controller;
       let accumulated = "";
+      let accumulatedThinking = "";
 
       try {
         const res = await fetch(CHAT_URL, {
@@ -61,6 +66,7 @@ export function useChatStream() {
             conversation_id: conversationId,
             message: text,
             images: images ?? null,
+            think: thinkingMode === "off" ? null : thinkingMode,
           }),
           signal: controller.signal,
         });
@@ -94,15 +100,25 @@ export function useChatStream() {
               try {
                 const data = JSON.parse(raw);
                 switch (currentEvent) {
+                  case "thinking":
+                    accumulatedThinking += data.content;
+                    updateLastAssistantThinking(accumulatedThinking);
+                    break;
                   case "text":
                     accumulated += data.content;
                     updateLastAssistantContent(accumulated);
                     break;
                   case "tool_call":
+                    addToolCallToLastAssistant({
+                      name: data.name,
+                      query: data.query,
+                      status: "pending",
+                    });
                     setStatus("searching");
                     setSearchQuery(data.query);
                     break;
                   case "search_results":
+                    resolveLastToolCall();
                     if (data.results?.length) {
                       appendSourcesToLastAssistant(data.results);
                     }
@@ -150,6 +166,10 @@ export function useChatStream() {
       addMessage,
       updateLastAssistantContent,
       appendSourcesToLastAssistant,
+      addToolCallToLastAssistant,
+      resolveLastToolCall,
+      updateLastAssistantThinking,
+      thinkingMode,
       setStatus,
       setSearchQuery,
       setConversationId,
