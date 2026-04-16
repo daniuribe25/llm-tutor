@@ -5,6 +5,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from langfuse import observe
+
 from api.config import MODEL
 from api.services.agents.base import BaseAgent
 from api.services.agents.prompts import CRITIC_PROMPT, REFINER_PROMPT
@@ -40,6 +42,7 @@ class Critic(BaseAgent):
     Triggers revision when quality falls below threshold.
     """
 
+    @observe(name="critic.evaluate")
     async def evaluate(
         self,
         original_query: str,

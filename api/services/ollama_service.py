@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -8,6 +9,8 @@ from api.services.ollama_client import get_client
 from api.services.prompts import SYSTEM_PROMPT
 from api.services.sse import SSEEvent
 from api.services.tools import SEARCH_TOOL, execute_web_search
+
+logger = logging.getLogger(__name__)
 
 
 async def stream_chat(
@@ -90,4 +93,5 @@ async def stream_chat(
             tool_calls_detected.clear()
 
     except Exception as exc:
+        logger.exception("stream_chat error")
         yield SSEEvent("error", {"error": str(exc)})

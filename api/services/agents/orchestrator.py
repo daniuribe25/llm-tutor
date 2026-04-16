@@ -15,6 +15,8 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from langfuse import observe
+
 from api.services.agents.critic import Critic, Refiner
 from api.services.agents.planner import QueryPlanner
 from api.services.agents.researcher import ResearchResult, Researcher
@@ -192,6 +194,7 @@ async def _run_deep(
             yield SSEEvent("text", {"content": chunk})
 
 
+@observe(name="parallel_research")
 async def _parallel_research(
     sub_questions: list[str],
     total: int,

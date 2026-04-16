@@ -5,6 +5,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from langfuse import observe
+
 from api.services.agents.base import BaseAgent
 from api.services.agents.prompts import RESEARCHER_PROMPT
 from api.services.sse import SSEEvent
@@ -141,6 +143,7 @@ class Researcher(BaseAgent):
         except (TypeError, ValueError):
             return {}
 
+    @observe(name="researcher.chat_with_tools", as_type="generation")
     async def _chat_with_tools(self, messages: list[dict[str, Any]], *, force_text: bool = False):
         """Single LLM call with researcher tools, optionally without tools (force text)."""
         from api.config import MODEL

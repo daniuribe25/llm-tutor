@@ -6,6 +6,8 @@ import re
 from collections.abc import AsyncIterator
 from typing import Any
 
+from langfuse import observe
+
 from api.config import MODEL
 from api.services.ollama_client import get_client
 
@@ -29,6 +31,7 @@ def _extract_json(text: str) -> str:
 class BaseAgent:
     """Shared LLM call logic for all agents in the pipeline."""
 
+    @observe(name="call_llm", as_type="generation")
     async def call_llm(
         self,
         messages: list[dict[str, Any]],
@@ -56,6 +59,7 @@ class BaseAgent:
 
         return response.message.content or ""
 
+    @observe(name="call_llm_json", as_type="generation")
     async def call_llm_json(
         self,
         messages: list[dict[str, Any]],

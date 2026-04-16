@@ -4,6 +4,8 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from langfuse import observe
+
 from api.config import MODEL
 from api.services.agents.base import BaseAgent
 from api.services.agents.prompts import SYNTHESIZER_PROMPT
@@ -88,6 +90,7 @@ class Synthesizer(BaseAgent):
             {"role": "user", "content": user_content},
         ]
 
+    @observe(name="synthesizer.collect", as_type="generation")
     async def _collect_synthesis(
         self, messages: list[dict[str, Any]], *, think: str | None = None
     ) -> str:

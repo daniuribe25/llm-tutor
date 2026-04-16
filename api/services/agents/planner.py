@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from langfuse import observe
+
 from api.services.agents.base import BaseAgent
 from api.services.agents.prompts import PLANNER_PROMPT
 
@@ -20,6 +22,7 @@ class QueryPlanner(BaseAgent):
     Researcher agent, with all results later synthesized into a final answer.
     """
 
+    @observe(name="planner.plan")
     async def plan(
         self,
         query: str,

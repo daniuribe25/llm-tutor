@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
+from langfuse import observe
+
 from api.services.agents.base import BaseAgent
 from api.services.agents.prompts import ROUTER_PROMPT
 
@@ -21,6 +23,7 @@ class QueryRouter(BaseAgent):
     this is the fastest agent in the pipeline.
     """
 
+    @observe(name="router.classify")
     async def classify(
         self,
         messages: list[dict[str, Any]],

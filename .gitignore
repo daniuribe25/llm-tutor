@@ -7,6 +7,7 @@
 # Local-only deployment notes (project-specific)
 README.deployment.md
 README.sql.md
+README.langfuse.md
 
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
